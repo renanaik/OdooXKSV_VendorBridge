@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,10 +11,37 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Printer, Download, CheckCircle, XCircle, ArrowLeft, Building2, MapPin, Calendar, CreditCard, Receipt, Building, Mail, Send } from "lucide-react";
 import Link from "next/link";
+import api from "@/lib/api";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function InvoiceDetailsPage({ params }: { params: { id: string } }) {
-  const invoiceId = params.id || "INV-2026-042";
+  const invoiceId = params.id;
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [invoice, setInvoice] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchInvoice = async () => {
+      try {
+        const res = await api.get(`/invoices/${invoiceId}`);
+        setInvoice(res.data);
+      } catch (err) {
+        console.error("Failed to load invoice", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInvoice();
+  }, [invoiceId]);
+
+  if (loading) {
+    return <div className="p-8 text-center animate-pulse">Loading invoice details...</div>;
+  }
+
+  if (!invoice) {
+    return <div className="p-8 text-center text-muted-foreground">Invoice not found.</div>;
+  }
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 max-w-6xl mx-auto">
@@ -23,36 +50,51 @@ export default function InvoiceDetailsPage({ params }: { params: { id: string } 
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <h2 className="text-3xl font-bold tracking-tight">Invoice Details</h2>
-        <Badge variant="outline" className="text-amber-500 border-amber-500 ml-auto bg-amber-500/10">Pending Payment</Badge>
+        <Badge variant="outline" className={invoice.status === "Paid" ? "text-emerald-500 border-emerald-500 bg-emerald-500/10" : "text-amber-500 border-amber-500 bg-amber-500/10"}>{invoice.status}</Badge>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div className="flex items-center gap-3 text-muted-foreground">
-          <span className="flex items-center gap-1"><Receipt className="w-4 h-4" /> {invoiceId}</span>
+          <span className="flex items-center gap-1"><Receipt className="w-4 h-4" /> {invoice.invoiceNumber}</span>
           <span>•</span>
-          <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> Issued: 05 Jun 2026</span>
+          <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> Issued: {new Date(invoice.invoiceDate).toLocaleDateString()}</span>
           <span>•</span>
-          <span className="flex items-center gap-1 text-destructive"><Calendar className="w-4 h-4" /> Due: 05 Jul 2026</span>
+          <span className="flex items-center gap-1 text-destructive"><Calendar className="w-4 h-4" /> Due: {new Date(invoice.dueDate).toLocaleDateString()}</span>
         </div>
         <div className="flex gap-2 w-full sm:w-auto flex-wrap">
-          <Button variant="outline"><Printer className="w-4 h-4 mr-2" /> Print</Button>
-          <Button variant="outline"><Download className="w-4 h-4 mr-2" /> PDF</Button>
+          <Button variant="outline" onClick={async () => {
+             // Handle print
+             window.print();
+          }}><Printer className="w-4 h-4 mr-2" /> Print</Button>
+          <Button variant="outline" onClick={async () => {
+             try {
+                const res = await api.get(`/invoices/${invoice._id}/pdf`, { responseType: 'blob' });
+                const url = window.URL.createObjectURL(new Blob([res.data]));
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', `Invoice-${invoice.invoiceNumber}.pdf`);
+                document.body.appendChild(link);
+                link.click();
+             } catch (err) {
+                toast({ title: "Error", description: "Could not download PDF", variant: "destructive" });
+             }
+          }}><Download className="w-4 h-4 mr-2" /> PDF</Button>
           
           <Dialog open={isEmailModalOpen} onOpenChange={setIsEmailModalOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline"><Mail className="w-4 h-4 mr-2" /> Email</Button>
+            <DialogTrigger render={<Button variant="outline" />}>
+              <Mail className="w-4 h-4 mr-2" /> Email
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Send Invoice Email</DialogTitle>
                 <DialogDescription>
-                  Send invoice {invoiceId} directly to the vendor or client.
+                  Send invoice {invoice.invoiceNumber} directly to the vendor or client.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="to">Recipient Email</Label>
-                  <Input id="to" defaultValue="accounts@dell.in" />
+                  <Input id="to" defaultValue={invoice.vendor?.email || ""} />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="cc">CC</Label>
@@ -60,25 +102,47 @@ export default function InvoiceDetailsPage({ params }: { params: { id: string } 
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="subject">Subject</Label>
-                  <Input id="subject" defaultValue={`Invoice ${invoiceId} from VendorBridge`} />
+                  <Input id="subject" defaultValue={`Invoice ${invoice.invoiceNumber} from VendorBridge`} />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="message">Message</Label>
                   <Textarea 
                     id="message" 
                     rows={4}
-                    defaultValue={`Please find attached the invoice ${invoiceId} for PO-2026-089. Kindly process the payment before the due date.`} 
+                    defaultValue={`Please find attached the invoice ${invoice.invoiceNumber} for ${invoice.poReference}. Kindly process the payment before the due date.`} 
                   />
                 </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsEmailModalOpen(false)}>Cancel</Button>
-                <Button onClick={() => setIsEmailModalOpen(false)}><Send className="w-4 h-4 mr-2" /> Send Email</Button>
+                <Button onClick={async () => {
+                   try {
+                     await api.post(`/invoices/${invoice._id}/send-email`, {
+                       to: (document.getElementById('to') as HTMLInputElement).value,
+                       subject: (document.getElementById('subject') as HTMLInputElement).value,
+                       message: (document.getElementById('message') as HTMLTextAreaElement).value
+                     });
+                     toast({ title: "Success", description: "Email sent successfully." });
+                     setIsEmailModalOpen(false);
+                   } catch (err) {
+                     toast({ title: "Error", description: "Failed to send email", variant: "destructive" });
+                   }
+                }}><Send className="w-4 h-4 mr-2" /> Send Email</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
-          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white"><CheckCircle className="w-4 h-4 mr-2" /> Mark Paid</Button>
+          {invoice.status !== "Paid" && (
+            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={async () => {
+              try {
+                await api.put(`/invoices/${invoice._id}/status`, { status: 'Paid' });
+                setInvoice({...invoice, status: 'Paid'});
+                toast({ title: "Success", description: "Invoice marked as paid." });
+              } catch (err) {
+                toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
+              }
+            }}><CheckCircle className="w-4 h-4 mr-2" /> Mark Paid</Button>
+          )}
         </div>
       </div>
 
@@ -89,10 +153,9 @@ export default function InvoiceDetailsPage({ params }: { params: { id: string } 
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
-              <h4 className="font-bold text-lg">VendorBridge Technologies</h4>
-              <p className="text-sm text-muted-foreground flex items-center gap-2 mt-2"><MapPin className="w-4 h-4" /> Cyber City, DLF Phase 2</p>
-              <p className="text-sm text-muted-foreground pl-6">Gurugram, Haryana 122002</p>
-              <p className="text-sm text-muted-foreground pl-6">GSTIN: 06AAACA1234A1Z5</p>
+              <h4 className="font-bold text-lg">{invoice.billingDetails?.companyName || "VendorBridge Technologies"}</h4>
+              <p className="text-sm text-muted-foreground flex items-center gap-2 mt-2"><MapPin className="w-4 h-4" /> {invoice.billingDetails?.address || "Cyber City, DLF Phase 2"}</p>
+              <p className="text-sm text-muted-foreground pl-6">{invoice.billingDetails?.taxId ? `GSTIN: ${invoice.billingDetails.taxId}` : ""}</p>
             </div>
           </CardContent>
         </Card>
@@ -103,10 +166,9 @@ export default function InvoiceDetailsPage({ params }: { params: { id: string } 
           </CardHeader>
           <CardContent>
              <div className="space-y-1">
-              <h4 className="font-bold text-lg text-primary">Dell India Pvt. Ltd.</h4>
-              <p className="text-sm text-muted-foreground flex items-center gap-2 mt-2"><MapPin className="w-4 h-4" /> Divyasree Greens, Inner Ring Rd</p>
-              <p className="text-sm text-muted-foreground pl-6">Bengaluru, Karnataka 560071</p>
-              <p className="text-sm text-muted-foreground pl-6">GSTIN: 29AABCD1234F1Z9</p>
+              <h4 className="font-bold text-lg text-primary">{invoice.vendor?.companyName}</h4>
+              <p className="text-sm text-muted-foreground flex items-center gap-2 mt-2"><MapPin className="w-4 h-4" /> {invoice.vendor?.address}</p>
+              <p className="text-sm text-muted-foreground pl-6">GSTIN: {invoice.vendor?.taxId}</p>
             </div>
           </CardContent>
         </Card>
@@ -115,7 +177,7 @@ export default function InvoiceDetailsPage({ params }: { params: { id: string } 
       <Card>
         <CardHeader>
           <CardTitle>Line Items</CardTitle>
-          <CardDescription>Items linked to Purchase Order <Link href="#" className="text-primary hover:underline">PO-2026-089</Link></CardDescription>
+          <CardDescription>Items linked to Purchase Order <Link href="#" className="text-primary hover:underline">{invoice.poReference}</Link></CardDescription>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <Table>
@@ -128,24 +190,14 @@ export default function InvoiceDetailsPage({ params }: { params: { id: string } 
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">Dell Latitude 5430 - Core i5, 16GB RAM</TableCell>
-                <TableCell>50</TableCell>
-                <TableCell>₹ 62,000.00</TableCell>
-                <TableCell>₹ 31,00,000.00</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Dell 24" USB-C Monitor</TableCell>
-                <TableCell>50</TableCell>
-                <TableCell>₹ 14,500.00</TableCell>
-                <TableCell>₹ 7,25,000.00</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Wireless Keyboard & Mouse Combo</TableCell>
-                <TableCell>50</TableCell>
-                <TableCell>₹ 2,100.00</TableCell>
-                <TableCell>₹ 1,05,000.00</TableCell>
-              </TableRow>
+              {invoice.items?.map((item: any, i: number) => (
+                <TableRow key={i}>
+                  <TableCell className="font-medium">{item.description}</TableCell>
+                  <TableCell>{item.quantity}</TableCell>
+                  <TableCell>₹ {(item.unitPrice || 0).toLocaleString()}</TableCell>
+                  <TableCell>₹ {(item.total || (item.quantity * item.unitPrice) || 0).toLocaleString()}</TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </CardContent>
@@ -158,18 +210,8 @@ export default function InvoiceDetailsPage({ params }: { params: { id: string } 
           </CardHeader>
           <CardContent>
              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-y-2 text-sm">
-                   <div className="text-muted-foreground">Bank Name:</div>
-                   <div className="font-medium">HDFC Bank Ltd.</div>
-                   <div className="text-muted-foreground">Account Number:</div>
-                   <div className="font-medium">50200012345678</div>
-                   <div className="text-muted-foreground">IFSC Code:</div>
-                   <div className="font-medium">HDFC0000001</div>
-                   <div className="text-muted-foreground">Branch:</div>
-                   <div className="font-medium">Koramangala, Bengaluru</div>
-                </div>
                 <div className="bg-muted p-3 rounded-lg border text-sm text-muted-foreground">
-                   Please include invoice number <strong>{invoiceId}</strong> in your payment reference to ensure prompt processing.
+                   Please include invoice number <strong>{invoice.invoiceNumber}</strong> in your payment reference to ensure prompt processing.
                 </div>
              </div>
           </CardContent>
@@ -180,72 +222,31 @@ export default function InvoiceDetailsPage({ params }: { params: { id: string } 
              <div className="space-y-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium">₹ 39,30,000.00</span>
+                  <span className="font-medium">₹ {(invoice.subtotal || 0).toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Discount (5%)</span>
-                  <span className="text-emerald-500">- ₹ 1,96,500.00</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Taxable Value</span>
-                  <span className="font-medium">₹ 37,33,500.00</span>
-                </div>
+                {invoice.discount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Discount</span>
+                    <span className="text-emerald-500">- ₹ {(invoice.discount || 0).toLocaleString()}</span>
+                  </div>
+                )}
                 <div className="border-t pt-4 mt-2">
                    <div className="flex justify-between text-sm mb-2">
-                     <span className="text-muted-foreground">IGST (18%)</span>
-                     <span className="font-medium">₹ 6,72,030.00</span>
+                     <span className="text-muted-foreground">Tax</span>
+                     <span className="font-medium">₹ {(invoice.tax || 0).toLocaleString()}</span>
                    </div>
                 </div>
                 <div className="border-t border-dashed pt-4 mt-2">
                    <div className="flex justify-between items-end">
                      <span className="font-semibold text-lg">Grand Total</span>
-                     <span className="text-3xl font-bold text-primary">₹ 44,05,530.00</span>
+                     <span className="text-3xl font-bold text-primary">₹ {(invoice.grandTotal || 0).toLocaleString()}</span>
                    </div>
-                   <p className="text-xs text-right text-muted-foreground mt-1">Forty Four Lakh Five Thousand Five Hundred Thirty Rupees Only</p>
                 </div>
              </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="pt-4">
-         <h3 className="text-lg font-semibold mb-4">Payment Timeline</h3>
-         <div className="flex flex-col sm:flex-row gap-4 justify-between relative">
-            <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-muted hidden sm:block -z-10"></div>
-            
-            <div className="bg-card border shadow-sm p-4 rounded-xl flex-1 text-center relative">
-               <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto mb-2 border-4 border-background">
-                 <CheckCircle className="w-4 h-4" />
-               </div>
-               <p className="font-medium text-sm">Invoice Submitted</p>
-               <p className="text-xs text-muted-foreground">05 Jun 2026, 10:30 AM</p>
-            </div>
-            
-            <div className="bg-card border shadow-sm p-4 rounded-xl flex-1 text-center relative">
-               <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto mb-2 border-4 border-background">
-                 <CheckCircle className="w-4 h-4" />
-               </div>
-               <p className="font-medium text-sm">Goods Received (GRN)</p>
-               <p className="text-xs text-muted-foreground">06 Jun 2026, 02:15 PM</p>
-            </div>
-
-            <div className="bg-card border border-primary shadow-md p-4 rounded-xl flex-1 text-center relative ring-2 ring-primary/20">
-               <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center mx-auto mb-2 border-4 border-background">
-                 <span className="w-2 h-2 rounded-full bg-current animate-pulse"></span>
-               </div>
-               <p className="font-medium text-sm">Pending Approval</p>
-               <p className="text-xs text-muted-foreground">Finance Dept.</p>
-            </div>
-
-            <div className="bg-muted p-4 rounded-xl flex-1 text-center opacity-50">
-               <div className="w-8 h-8 rounded-full bg-muted-foreground text-background flex items-center justify-center mx-auto mb-2 border-4 border-background">
-                 <div className="w-2 h-2 rounded-full bg-current"></div>
-               </div>
-               <p className="font-medium text-sm">Payment Scheduled</p>
-               <p className="text-xs text-muted-foreground">Awaiting Approval</p>
-            </div>
-         </div>
-      </div>
     </div>
   );
 }

@@ -1,17 +1,37 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, CreditCard, Receipt } from "lucide-react";
+import { Download, CreditCard, Receipt, Eye } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import Link from "next/link";
+import api from "@/lib/api";
 
 export default function InvoicesPage() {
-  const invoices = [
-    { id: "INV-2026-001", po: "PO-2026-0045", vendor: "Reliance Retail Ltd", date: "26 May 2026", due: "25 Jun 2026", amount: "₹4,31,58,500", status: "Pending" },
-    { id: "INV-2026-002", po: "PO-2026-0032", vendor: "Tata Consultancy Services", date: "15 May 2026", due: "14 Jun 2026", amount: "₹8,50,000", status: "Paid" },
-    { id: "INV-2026-003", po: "PO-2026-0021", vendor: "Wipro Enterprises", date: "02 Apr 2026", due: "02 May 2026", amount: "₹1,25,000", status: "Overdue" },
-  ];
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, []);
+
+  const fetchInvoices = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/invoices");
+      setInvoices(res.data);
+    } catch (err) {
+      console.error("Failed to fetch invoices", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const pendingAmount = invoices.filter(i => i.status === 'Pending').reduce((acc, curr) => acc + curr.grandTotal, 0);
+  const overdueAmount = invoices.filter(i => i.status === 'Overdue').reduce((acc, curr) => acc + curr.grandTotal, 0);
+  const paidAmount = invoices.filter(i => i.status === 'Paid').reduce((acc, curr) => acc + curr.grandTotal, 0);
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -29,8 +49,8 @@ export default function InvoicesPage() {
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-500">₹4,31,58,500</div>
-            <p className="text-xs text-muted-foreground">1 Invoice due next 30 days</p>
+            <div className="text-2xl font-bold text-amber-500">₹{pendingAmount.toLocaleString('en-IN')}</div>
+            <p className="text-xs text-muted-foreground">{invoices.filter(i => i.status === 'Pending').length} Invoices pending</p>
           </CardContent>
         </Card>
         <Card>
@@ -39,18 +59,18 @@ export default function InvoicesPage() {
             <Receipt className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">₹1,25,000</div>
-            <p className="text-xs text-muted-foreground">1 Invoice past due date</p>
+            <div className="text-2xl font-bold text-destructive">₹{overdueAmount.toLocaleString('en-IN')}</div>
+            <p className="text-xs text-muted-foreground">{invoices.filter(i => i.status === 'Overdue').length} Invoices past due date</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Paid This Month</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Paid</CardTitle>
             <CreditCard className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-500">₹8,50,000</div>
-            <p className="text-xs text-muted-foreground">2 Invoices settled</p>
+            <div className="text-2xl font-bold text-emerald-500">₹{paidAmount.toLocaleString('en-IN')}</div>
+            <p className="text-xs text-muted-foreground">{invoices.filter(i => i.status === 'Paid').length} Invoices settled</p>
           </CardContent>
         </Card>
       </div>
@@ -60,45 +80,52 @@ export default function InvoicesPage() {
            <CardTitle>All Invoices</CardTitle>
         </CardHeader>
         <CardContent>
-           <Table>
-             <TableHeader>
-               <TableRow>
-                 <TableHead>Invoice #</TableHead>
-                 <TableHead>PO Reference</TableHead>
-                 <TableHead>Vendor</TableHead>
-                 <TableHead>Invoice Date</TableHead>
-                 <TableHead>Due Date</TableHead>
-                 <TableHead>Status</TableHead>
-                 <TableHead className="text-right">Amount (₹)</TableHead>
-                 <TableHead className="text-center">Actions</TableHead>
-               </TableRow>
-             </TableHeader>
-             <TableBody>
-               {invoices.map(inv => (
-                 <TableRow key={inv.id}>
-                   <TableCell className="font-bold">{inv.id}</TableCell>
-                   <TableCell className="text-muted-foreground">{inv.po}</TableCell>
-                   <TableCell>{inv.vendor}</TableCell>
-                   <TableCell>{inv.date}</TableCell>
-                   <TableCell className={inv.status === 'Overdue' ? "text-destructive font-medium" : ""}>{inv.due}</TableCell>
-                   <TableCell>
-                      <Badge variant={inv.status === 'Paid' ? 'default' : inv.status === 'Pending' ? 'secondary' : 'destructive'}
-                             className={inv.status === 'Paid' ? 'bg-emerald-500 hover:bg-emerald-600' : inv.status === 'Pending' ? 'bg-amber-500/20 text-amber-600 hover:bg-amber-500/30' : ''}
-                      >
-                         {inv.status}
-                      </Badge>
-                   </TableCell>
-                   <TableCell className="text-right font-semibold">{inv.amount}</TableCell>
-                   <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-2">
-                         <Button variant="ghost" size="icon" title="Download PDF"><Download className="h-4 w-4" /></Button>
-                         {inv.status !== 'Paid' && <Button size="sm" variant={inv.status === 'Overdue' ? 'destructive' : 'default'}>Mark Paid</Button>}
-                      </div>
-                   </TableCell>
+           {loading ? (
+             <div className="text-center py-8">Loading invoices...</div>
+           ) : invoices.length === 0 ? (
+             <div className="text-center py-8 text-muted-foreground">No invoices found.</div>
+           ) : (
+             <Table>
+               <TableHeader>
+                 <TableRow>
+                   <TableHead>Invoice #</TableHead>
+                   <TableHead>PO Reference</TableHead>
+                   <TableHead>Vendor</TableHead>
+                   <TableHead>Invoice Date</TableHead>
+                   <TableHead>Due Date</TableHead>
+                   <TableHead>Status</TableHead>
+                   <TableHead className="text-right">Amount (₹)</TableHead>
+                   <TableHead className="text-center">Actions</TableHead>
                  </TableRow>
-               ))}
-             </TableBody>
-           </Table>
+               </TableHeader>
+               <TableBody>
+                 {invoices.map(inv => (
+                   <TableRow key={inv._id}>
+                     <TableCell className="font-bold">{inv.invoiceNumber}</TableCell>
+                     <TableCell className="text-muted-foreground">{inv.purchaseOrder?.poNumber || 'N/A'}</TableCell>
+                     <TableCell>{inv.vendor?.companyName}</TableCell>
+                     <TableCell>{new Date(inv.invoiceDate).toLocaleDateString()}</TableCell>
+                     <TableCell className={inv.status === 'Overdue' ? "text-destructive font-medium" : ""}>
+                       {new Date(inv.dueDate).toLocaleDateString()}
+                     </TableCell>
+                     <TableCell>
+                        <Badge variant={inv.status === 'Paid' ? 'default' : inv.status === 'Pending' ? 'secondary' : 'destructive'}
+                               className={inv.status === 'Paid' ? 'bg-emerald-500 hover:bg-emerald-600' : inv.status === 'Pending' ? 'bg-amber-500/20 text-amber-600 hover:bg-amber-500/30' : ''}
+                        >
+                           {inv.status}
+                        </Badge>
+                     </TableCell>
+                     <TableCell className="text-right font-semibold">{(inv.grandTotal || 0).toLocaleString('en-IN')}</TableCell>
+                     <TableCell className="text-center">
+                        <Link href={`/invoices/${inv._id}`}>
+                          <Button variant="ghost" size="sm"><Eye className="h-4 w-4 mr-2" /> View</Button>
+                        </Link>
+                     </TableCell>
+                   </TableRow>
+                 ))}
+               </TableBody>
+             </Table>
+           )}
         </CardContent>
       </Card>
     </div>

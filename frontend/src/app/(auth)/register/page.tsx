@@ -1,5 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { Package2, Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Package2, Upload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,8 +14,66 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
+import api from "@/lib/api";
 
 export default function RegisterPage() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+    role: "Vendor",
+    department: "",
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleRoleChange = (value: string | null) => {
+    if (value) {
+      setFormData({ ...formData, role: value });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.password !== formData.confirmPassword) {
+      toast({ title: "Error", description: "Passwords do not match", variant: "destructive" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+        phone: formData.phone,
+        department: formData.department,
+      };
+
+      await api.post('/auth/register', payload);
+      toast({ title: "Success", description: "Registration successful. Please log in." });
+      router.push('/login');
+    } catch (err: any) {
+      toast({ 
+        title: "Registration Failed", 
+        description: err.response?.data?.message || "An error occurred", 
+        variant: "destructive" 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="w-full lg:grid lg:min-h-screen lg:grid-cols-2">
       <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-card">
@@ -32,78 +94,63 @@ export default function RegisterPage() {
             </p>
           </div>
           
-          <form className="mt-8 space-y-6" action="/dashboard">
-            <div className="flex flex-col items-center justify-center mb-6">
-               <div className="h-24 w-24 rounded-full bg-accent/20 border-2 border-dashed border-border flex flex-col items-center justify-center text-muted-foreground cursor-pointer hover:bg-accent/30 transition-colors">
-                  <Upload className="h-6 w-6 mb-1" />
-                  <span className="text-xs">Photo</span>
-               </div>
-            </div>
-
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="grid grid-cols-2 gap-4">
                <div>
                  <label className="text-sm font-medium mb-1 block">First Name</label>
-                 <Input required placeholder="John" />
+                 <Input name="firstName" required placeholder="John" value={formData.firstName} onChange={handleChange} />
                </div>
                <div>
                  <label className="text-sm font-medium mb-1 block">Last Name</label>
-                 <Input required placeholder="Doe" />
+                 <Input name="lastName" required placeholder="Doe" value={formData.lastName} onChange={handleChange} />
                </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
                <div>
                  <label className="text-sm font-medium mb-1 block">Email</label>
-                 <Input required type="email" placeholder="john@example.com" />
+                 <Input name="email" required type="email" placeholder="john@example.com" value={formData.email} onChange={handleChange} />
                </div>
                <div>
                  <label className="text-sm font-medium mb-1 block">Phone</label>
-                 <Input required type="tel" placeholder="+91 98765 43210" />
+                 <Input name="phone" required type="tel" placeholder="+91 98765 43210" value={formData.phone} onChange={handleChange} />
+               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+               <div>
+                 <label className="text-sm font-medium mb-1 block">Password</label>
+                 <Input name="password" required type="password" placeholder="••••••••" value={formData.password} onChange={handleChange} minLength={6} />
+               </div>
+               <div>
+                 <label className="text-sm font-medium mb-1 block">Confirm Password</label>
+                 <Input name="confirmPassword" required type="password" placeholder="••••••••" value={formData.confirmPassword} onChange={handleChange} minLength={6} />
                </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
                <div>
-                 <label className="text-sm font-medium mb-1 block">Country</label>
-                 <Select defaultValue="in">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="in">India</SelectItem>
-                      <SelectItem value="us">United States</SelectItem>
-                      <SelectItem value="uk">United Kingdom</SelectItem>
-                      <SelectItem value="ae">UAE</SelectItem>
-                    </SelectContent>
-                 </Select>
-               </div>
-               <div>
                  <label className="text-sm font-medium mb-1 block">Role</label>
-                 <Select defaultValue="vendor">
+                 <Select value={formData.role} onValueChange={handleRoleChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select Role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="admin">Administrator</SelectItem>
-                      <SelectItem value="officer">Procurement Officer</SelectItem>
-                      <SelectItem value="manager">Approver / Manager</SelectItem>
-                      <SelectItem value="vendor">Vendor</SelectItem>
+                      <SelectItem value="Admin">Administrator</SelectItem>
+                      <SelectItem value="Procurement Officer">Procurement Officer</SelectItem>
+                      <SelectItem value="Manager">Approver / Manager</SelectItem>
+                      <SelectItem value="Vendor">Vendor</SelectItem>
                     </SelectContent>
                  </Select>
                </div>
-            </div>
-            
-            <div>
-               <label className="text-sm font-medium mb-1 block">Department (Optional)</label>
-               <Input placeholder="e.g. IT, Operations, Finance" />
-            </div>
-            
-            <div>
-               <label className="text-sm font-medium mb-1 block">Additional Notes</label>
-               <Textarea placeholder="Any other details..." className="resize-none" />
+               <div>
+                 <label className="text-sm font-medium mb-1 block">Department (Optional)</label>
+                 <Input name="department" placeholder="e.g. IT, Operations" value={formData.department} onChange={handleChange} />
+               </div>
             </div>
 
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Create Account
             </Button>
           </form>

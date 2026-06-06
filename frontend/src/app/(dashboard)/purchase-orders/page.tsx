@@ -1,127 +1,164 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, Printer, Share2, FileText, CheckCircle2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, Eye, CheckCircle2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
+import Link from "next/link";
+import api from "@/lib/api";
 
 export default function PurchaseOrdersPage() {
+  const { toast } = useToast();
+  const [pos, setPos] = useState<any[]>([]);
+  const [quotations, setQuotations] = useState<any[]>([]);
+  const [selectedQuotation, setSelectedQuotation] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    fetchPOs();
+    fetchQuotations();
+  }, []);
+
+  const fetchPOs = async () => {
+    try {
+      const res = await api.get("/purchase-orders");
+      setPos(res.data);
+    } catch (err) {
+      console.error("Failed to load POs", err);
+    }
+  };
+
+  const fetchQuotations = async () => {
+    try {
+      const res = await api.get("/quotations");
+      // filter only approved or accepted quotations to generate POs from
+      const approved = res.data.filter((q: any) => q.status === "Accepted");
+      setQuotations(approved);
+    } catch (err) {
+      console.error("Failed to load Quotations", err);
+    }
+  };
+
+  const generatePO = async () => {
+    if (!selectedQuotation) {
+      toast({ title: "Validation Error", description: "Select a Quotation first", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const q = quotations.find((q) => q._id === selectedQuotation);
+      const payload = {
+        quotation: q._id,
+        vendor: q.vendor._id,
+        items: q.items.map((i: any) => ({
+          itemName: i.itemName,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+          tax: i.tax,
+          total: i.total
+        })),
+        subtotal: q.subtotal,
+        tax: q.tax,
+        grandTotal: q.grandTotal,
+        status: "Draft"
+      };
+
+      await api.post("/purchase-orders", payload);
+      toast({ title: "Success", description: "Purchase Order generated successfully" });
+      setOpen(false);
+      fetchPOs();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.response?.data?.message || "Failed to generate PO", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 max-w-5xl mx-auto">
+    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Purchase Order Details</h2>
-          <p className="text-muted-foreground mt-1">PO-2026-0045</p>
+          <h2 className="text-3xl font-bold tracking-tight">Purchase Orders</h2>
+          <p className="text-muted-foreground mt-1">Manage and track your purchase orders.</p>
         </div>
         <div className="flex gap-2">
-           <Button variant="outline"><Printer className="w-4 h-4 mr-2" /> Print</Button>
-           <Button variant="outline"><Download className="w-4 h-4 mr-2" /> PDF</Button>
-           <Button><Share2 className="w-4 h-4 mr-2" /> Share</Button>
+           <Dialog open={open} onOpenChange={setOpen}>
+             <DialogTrigger render={<Button />}>
+                <Plus className="w-4 h-4 mr-2" /> Generate PO
+             </DialogTrigger>
+             <DialogContent>
+               <DialogHeader>
+                 <DialogTitle>Generate Purchase Order</DialogTitle>
+               </DialogHeader>
+               <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Select Accepted Quotation</label>
+                    <Select value={selectedQuotation} onValueChange={(val) => setSelectedQuotation(val || "")}>
+                      <SelectTrigger><SelectValue placeholder="Choose a quotation" /></SelectTrigger>
+                      <SelectContent>
+                        {quotations.length === 0 && <SelectItem value="none" disabled>No accepted quotations available</SelectItem>}
+                        {quotations.map((q) => (
+                          <SelectItem key={q._id} value={q._id}>{q.quotationNumber} - {q.vendor?.companyName}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button className="w-full" onClick={generatePO} disabled={loading}>
+                    {loading ? "Generating..." : "Generate Purchase Order"}
+                  </Button>
+               </div>
+             </DialogContent>
+           </Dialog>
         </div>
       </div>
 
-      <Card className="border-2 p-4 md:p-8">
-        <CardHeader className="px-0 pt-0 flex flex-row items-start justify-between border-b pb-6">
-           <div className="flex items-center gap-2">
-              <div className="p-2 bg-primary rounded-lg text-primary-foreground font-bold text-xl">VB</div>
-              <div>
-                <h3 className="text-2xl font-bold">TechCorp India</h3>
-                <p className="text-sm text-muted-foreground">Corporate Headquarters, Mumbai</p>
-              </div>
-           </div>
-           <div className="text-right">
-              <h1 className="text-3xl font-black text-primary/20 uppercase tracking-widest mb-2">Purchase Order</h1>
-              <div className="text-sm"><span className="font-medium">PO Number:</span> PO-2026-0045</div>
-              <div className="text-sm"><span className="font-medium">Date:</span> 12 May 2026</div>
-              <div className="mt-2"><Badge className="bg-emerald-500 hover:bg-emerald-600 text-white"><CheckCircle2 className="w-3 h-3 mr-1" /> Approved</Badge></div>
-           </div>
+      <Card>
+        <CardHeader>
+           <CardTitle>Purchase Orders List</CardTitle>
         </CardHeader>
-        
-        <CardContent className="px-0 pt-6 space-y-8">
-           <div className="grid grid-cols-2 gap-8">
-              <div>
-                 <h4 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider mb-2">Vendor Details</h4>
-                 <div className="p-4 bg-muted/30 rounded-lg">
-                    <p className="font-bold text-lg">Reliance Retail Ltd</p>
-                    <p className="text-sm mt-1">Bandra Kurla Complex, Mumbai, 400051</p>
-                    <p className="text-sm">GST: 27AADCR4534K1Z2</p>
-                    <p className="text-sm mt-2">Attn: Anil Ambani (+91 98765 43210)</p>
-                 </div>
-              </div>
-              <div>
-                 <h4 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider mb-2">Shipping Details</h4>
-                 <div className="p-4 bg-muted/30 rounded-lg">
-                    <p className="font-bold">TechCorp India - IT Hub</p>
-                    <p className="text-sm mt-1">Sector 62, Noida, UP, 201309</p>
-                    <p className="text-sm mt-2">Delivery Expected By: 26 May 2026</p>
-                 </div>
-              </div>
-           </div>
-           
-           <div className="rounded-md border border-muted-foreground/20">
-              <Table>
-                <TableHeader className="bg-muted/50">
-                  <TableRow>
-                    <TableHead className="w-[50px]">#</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="w-[100px] text-center">Qty</TableHead>
-                    <TableHead className="w-[150px] text-right">Unit Price (₹)</TableHead>
-                    <TableHead className="w-[150px] text-right">Total (₹)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>1</TableCell>
-                    <TableCell className="font-medium">Dell Latitude 5430 Laptop<br/><span className="text-xs text-muted-foreground font-normal">Core i7, 16GB RAM, 512GB SSD</span></TableCell>
-                    <TableCell className="text-center">500</TableCell>
-                    <TableCell className="text-right">65,000</TableCell>
-                    <TableCell className="text-right font-semibold">3,25,00,000</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>2</TableCell>
-                    <TableCell className="font-medium">Dell 24-inch Monitor<br/><span className="text-xs text-muted-foreground font-normal">P2422H</span></TableCell>
-                    <TableCell className="text-center">500</TableCell>
-                    <TableCell className="text-right">12,000</TableCell>
-                    <TableCell className="text-right font-semibold">60,00,000</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-           </div>
-           
-           <div className="flex justify-end">
-              <div className="w-1/2 space-y-3">
-                 <div className="flex justify-between text-sm">
-                   <span className="text-muted-foreground">Subtotal</span>
-                   <span>₹ 3,85,00,000</span>
-                 </div>
-                 <div className="flex justify-between text-sm text-emerald-500">
-                   <span>Bulk Discount (5%)</span>
-                   <span>- ₹ 19,25,000</span>
-                 </div>
-                 <div className="flex justify-between text-sm">
-                   <span className="text-muted-foreground">CGST (9%)</span>
-                   <span>₹ 32,91,750</span>
-                 </div>
-                 <div className="flex justify-between text-sm border-b pb-3">
-                   <span className="text-muted-foreground">SGST (9%)</span>
-                   <span>₹ 32,91,750</span>
-                 </div>
-                 <div className="flex justify-between items-center pt-2">
-                   <span className="font-bold text-lg">Grand Total</span>
-                   <span className="text-2xl font-black text-primary">₹ 4,31,58,500</span>
-                 </div>
-              </div>
-           </div>
-           
-           <div className="border-t pt-6 text-sm text-muted-foreground">
-              <h4 className="font-semibold text-foreground mb-2">Terms & Conditions</h4>
-              <ul className="list-disc pl-5 space-y-1">
-                 <li>Payment: 30 days net from the date of invoice.</li>
-                 <li>All goods must be delivered along with the original tax invoice.</li>
-                 <li>3 Years comprehensive on-site warranty applicable as per SLA.</li>
-              </ul>
-           </div>
+        <CardContent>
+           {pos.length === 0 ? (
+             <div className="text-center py-8 text-muted-foreground border rounded-lg bg-muted/20">
+                No purchase orders found. Click "Generate PO" to create one.
+             </div>
+           ) : (
+             <Table>
+               <TableHeader>
+                 <TableRow>
+                   <TableHead>PO Number</TableHead>
+                   <TableHead>Vendor</TableHead>
+                   <TableHead>Date</TableHead>
+                   <TableHead>Amount (₹)</TableHead>
+                   <TableHead>Status</TableHead>
+                   <TableHead className="text-right">Actions</TableHead>
+                 </TableRow>
+               </TableHeader>
+               <TableBody>
+                 {pos.map((po) => (
+                   <TableRow key={po._id}>
+                     <TableCell className="font-medium">{po.poNumber}</TableCell>
+                     <TableCell>{po.vendor?.companyName}</TableCell>
+                     <TableCell>{new Date(po.createdAt).toLocaleDateString()}</TableCell>
+                     <TableCell>{po.grandTotal?.toLocaleString('en-IN')}</TableCell>
+                     <TableCell>
+                       <Badge variant={po.status === 'Draft' ? 'secondary' : 'default'}>{po.status}</Badge>
+                     </TableCell>
+                     <TableCell className="text-right">
+                       <Link href={`/purchase-orders/${po._id}`}>
+                         <Button variant="ghost" size="sm"><Eye className="w-4 h-4 mr-2" /> View</Button>
+                       </Link>
+                     </TableCell>
+                   </TableRow>
+                 ))}
+               </TableBody>
+             </Table>
+           )}
         </CardContent>
       </Card>
     </div>

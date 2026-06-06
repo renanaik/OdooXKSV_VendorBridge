@@ -30,7 +30,6 @@ const sidebarItems = [
   { name: "Invoices", href: "/invoices", icon: Receipt },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Activity Logs", href: "/activity", icon: Activity },
-  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function Sidebar() {

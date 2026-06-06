@@ -1,21 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, DollarSign, Activity, Users, ShoppingCart } from "lucide-react";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
 } from 'recharts';
-
-const spendData = [
-  { month: 'Jan', spend: 450000 },
-  { month: 'Feb', spend: 520000 },
-  { month: 'Mar', spend: 380000 },
-  { month: 'Apr', spend: 610000 },
-  { month: 'May', spend: 590000 },
-  { month: 'Jun', spend: 820000 },
-];
+import api from "@/lib/api";
 
 const categoryData = [
   { name: 'IT Hardware', value: 45 },
@@ -23,17 +15,6 @@ const categoryData = [
   { name: 'Facilities', value: 15 },
   { name: 'Consulting', value: 10 },
   { name: 'Logistics', value: 5 },
-];
-
-const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899'];
-
-const vendorPerformanceData = [
-  { subject: 'Quality', A: 90, B: 75, fullMark: 100 },
-  { subject: 'Price', A: 85, B: 90, fullMark: 100 },
-  { subject: 'Delivery Time', A: 95, B: 60, fullMark: 100 },
-  { subject: 'Compliance', A: 100, B: 85, fullMark: 100 },
-  { subject: 'Communication', A: 80, B: 85, fullMark: 100 },
-  { subject: 'Innovation', A: 70, B: 65, fullMark: 100 },
 ];
 
 const cycleTimeData = [
@@ -44,7 +25,33 @@ const cycleTimeData = [
   { stage: 'Delivery', time: 14 },
 ];
 
+const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899'];
+
 export default function AnalyticsDashboardPage() {
+  const [stats, setStats] = useState<any>(null);
+  const [spendData, setSpendData] = useState<any[]>([]);
+  const [vendorData, setVendorData] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        const [statsRes, spendRes, vendorRes] = await Promise.all([
+          api.get("/reports/dashboard"),
+          api.get("/reports/spending"),
+          api.get("/reports/vendor-performance")
+        ]);
+        setStats(statsRes.data);
+        setSpendData(spendRes.data);
+        setVendorData(vendorRes.data);
+      } catch (err) {
+        console.error("Failed to load analytics", err);
+      }
+    };
+    fetchAnalytics();
+  }, []);
+
+  if (!stats) return <div className="p-8">Loading Analytics...</div>;
+
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
@@ -57,50 +64,44 @@ export default function AnalyticsDashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">YTD Total Spend</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Spend (Live)</CardTitle>
             <DollarSign className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹ 3.37Cr</div>
+            <div className="text-2xl font-bold">₹ {(stats.totalSpend / 100000).toFixed(2)}L</div>
             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 text-emerald-500">
-              <TrendingUp className="h-3 w-3" /> +12.5% vs last year
+              <TrendingUp className="h-3 w-3" /> Live data
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Savings Achieved</CardTitle>
-            <Activity className="h-4 w-4 text-blue-500" />
+            <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
+            <Activity className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹ 42.5L</div>
-            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 text-emerald-500">
-              <TrendingUp className="h-3 w-3" /> Exceeded target by 4%
-            </p>
+            <div className="text-2xl font-bold">{stats.pendingApprovals}</div>
+            <p className="text-xs text-muted-foreground mt-1">Tasks requiring action</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Vendors</CardTitle>
-            <Users className="h-4 w-4 text-amber-500" />
+            <CardTitle className="text-sm font-medium">Total Vendors</CardTitle>
+            <Users className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">184</div>
-            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 text-emerald-500">
-               Avg Rating: 4.6 / 5.0
-            </p>
+            <div className="text-2xl font-bold">{stats.totalVendors}</div>
+            <p className="text-xs text-muted-foreground mt-1">Registered suppliers</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Cycle Time</CardTitle>
+            <CardTitle className="text-sm font-medium">Active RFQs</CardTitle>
             <ShoppingCart className="h-4 w-4 text-indigo-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">28 Days</div>
-            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 text-emerald-500">
-               <TrendingDown className="h-3 w-3" /> -2 days vs last quarter
-            </p>
+            <div className="text-2xl font-bold">{stats.activeRFQs}</div>
+            <p className="text-xs text-muted-foreground mt-1">In progress sourcing</p>
           </CardContent>
         </Card>
       </div>
@@ -108,21 +109,21 @@ export default function AnalyticsDashboardPage() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4">
           <CardHeader>
-            <CardTitle>Spend Trend Analysis (H1 2026)</CardTitle>
+            <CardTitle>Spend Trend Analysis</CardTitle>
             <CardDescription>Monthly procurement expenditure across all categories.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2 h-[350px]">
              <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={spendData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#888" opacity={0.2} />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 12}} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 12}} tickFormatter={(value) => `₹${value/100000}L`} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 12}} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 12}} tickFormatter={(value) => `₹${value/1000}k`} />
                   <Tooltip 
                     cursor={{fill: 'rgba(0,0,0,0.05)'}} 
                     contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'}} 
                     formatter={(value: any) => [`₹${(value).toLocaleString('en-IN')}`, 'Spend']}
                   />
-                  <Bar dataKey="spend" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                  <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={50} />
                 </BarChart>
              </ResponsiveContainer>
           </CardContent>
@@ -163,20 +164,22 @@ export default function AnalyticsDashboardPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Vendor Performance Comparison</CardTitle>
-            <CardDescription>Top Tier vs Secondary Tier Vendor Evaluation Matrix.</CardDescription>
+            <CardTitle>Vendor Ratings Overview</CardTitle>
+            <CardDescription>Top vendors by average performance rating.</CardDescription>
           </CardHeader>
           <CardContent className="h-[350px]">
              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={vendorPerformanceData}>
-                  <PolarGrid stroke="#888" opacity={0.3} />
-                  <PolarAngleAxis dataKey="subject" tick={{fill: '#888', fontSize: 12}} />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{fill: '#888', fontSize: 10}} />
-                  <Radar name="Tier 1 Vendors" dataKey="A" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
-                  <Radar name="Tier 2 Vendors" dataKey="B" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
-                  <Legend />
-                  <Tooltip />
-                </RadarChart>
+                <BarChart data={vendorData} layout="vertical" margin={{ top: 20, right: 30, left: 60, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#888" opacity={0.2} />
+                  <XAxis type="number" domain={[0, 5]} hide />
+                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 12}} width={100} />
+                  <Tooltip 
+                    cursor={{fill: 'rgba(0,0,0,0.05)'}} 
+                    contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'}}
+                    formatter={(value: any) => [`${value} Stars`, 'Rating']}
+                  />
+                  <Bar dataKey="rating" fill="#3b82f6" radius={[0, 4, 4, 0]} maxBarSize={20} />
+                </BarChart>
              </ResponsiveContainer>
           </CardContent>
         </Card>

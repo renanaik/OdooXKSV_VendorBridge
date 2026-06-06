@@ -10,7 +10,6 @@ import {
   ShoppingCart,
   Receipt,
   UserCircle,
-  Settings,
   Building2
 } from "lucide-react";
 

@@ -5,14 +5,33 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, FileText, CheckCircle2, UploadCloud, Building, Briefcase } from "lucide-react";
+import { Building2, FileText, UploadCloud, Briefcase } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import api from "@/lib/api";
 
 export default function AddVendorPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    companyName: "",
+    category: "",
+    gstNumber: "",
+    panNumber: "",
+    email: "",
+    phone: "",
+    website: "",
+    address: "",
+    city: "",
+    state: "",
+    country: "India",
+    postalCode: "",
+    bankName: "",
+    accountNumber: "",
+    ifscCode: "",
+  });
 
   const steps = [
     { id: 1, title: "Company Details", icon: Building2 },
@@ -22,12 +41,30 @@ export default function AddVendorPage() {
 
   const handleNext = () => setStep(step + 1);
   const handlePrev = () => setStep(step - 1);
-  const handleSubmit = () => {
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSelectChange = (name: string, value: string | null) => {
+    if (value) setFormData({ ...formData, [name]: value });
+  };
+
+  const handleSubmit = async () => {
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      await api.post("/vendors", formData);
+      toast({ title: "Success", description: "Vendor registered successfully" });
       router.push('/vendors');
-    }, 1500);
+    } catch (err: any) {
+      toast({ 
+        title: "Registration Failed", 
+        description: err.response?.data?.message || "Failed to register vendor", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -39,7 +76,6 @@ export default function AddVendorPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
-          <Button variant="secondary" onClick={() => alert("Draft saved successfully!")}>Save Draft</Button>
           {step === 3 ? (
             <Button onClick={handleSubmit} disabled={isSubmitting}>
               {isSubmitting ? "Submitting..." : "Submit Vendor"}
@@ -73,33 +109,33 @@ export default function AddVendorPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Company Name <span className="text-destructive">*</span></label>
-                  <Input placeholder="e.g. Acme Corporation" />
+                  <Input name="companyName" value={formData.companyName} onChange={handleChange} placeholder="e.g. Acme Corporation" required />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Vendor Category <span className="text-destructive">*</span></label>
-                  <Select>
+                  <Select value={formData.category} onValueChange={(val) => handleSelectChange('category', val)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select Category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="it">IT Hardware & Software</SelectItem>
-                      <SelectItem value="logistics">Logistics & Transport</SelectItem>
-                      <SelectItem value="raw">Raw Materials</SelectItem>
-                      <SelectItem value="services">Professional Services</SelectItem>
+                      <SelectItem value="IT Hardware & Software">IT Hardware & Software</SelectItem>
+                      <SelectItem value="Logistics & Transport">Logistics & Transport</SelectItem>
+                      <SelectItem value="Raw Materials">Raw Materials</SelectItem>
+                      <SelectItem value="Professional Services">Professional Services</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Email Address <span className="text-destructive">*</span></label>
-                  <Input type="email" placeholder="contact@company.com" />
+                  <Input name="email" value={formData.email} onChange={handleChange} type="email" placeholder="contact@company.com" required />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Phone Number <span className="text-destructive">*</span></label>
-                  <Input placeholder="+91 98765 43210" />
+                  <Input name="phone" value={formData.phone} onChange={handleChange} placeholder="+91 98765 43210" required />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Website</label>
-                  <Input placeholder="https://www.company.com" />
+                  <Input name="website" value={formData.website} onChange={handleChange} placeholder="https://www.company.com" />
                 </div>
               </div>
 
@@ -107,30 +143,30 @@ export default function AddVendorPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-sm font-medium">Address Line 1 <span className="text-destructive">*</span></label>
-                  <Input placeholder="Street address, building, suite" />
+                  <Input name="address" value={formData.address} onChange={handleChange} placeholder="Street address, building, suite" required />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">City <span className="text-destructive">*</span></label>
-                  <Input placeholder="City" />
+                  <Input name="city" value={formData.city} onChange={handleChange} placeholder="City" required />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">State / Province <span className="text-destructive">*</span></label>
-                  <Input placeholder="State" />
+                  <Input name="state" value={formData.state} onChange={handleChange} placeholder="State" required />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Postal Code <span className="text-destructive">*</span></label>
-                  <Input placeholder="PIN code" />
+                  <Input name="postalCode" value={formData.postalCode} onChange={handleChange} placeholder="PIN code" required />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Country <span className="text-destructive">*</span></label>
-                  <Select defaultValue="india">
+                  <Select value={formData.country} onValueChange={(val) => handleSelectChange('country', val)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select Country" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="india">India</SelectItem>
-                      <SelectItem value="us">United States</SelectItem>
-                      <SelectItem value="uk">United Kingdom</SelectItem>
+                      <SelectItem value="India">India</SelectItem>
+                      <SelectItem value="United States">United States</SelectItem>
+                      <SelectItem value="United Kingdom">United Kingdom</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -144,7 +180,7 @@ export default function AddVendorPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Bank Name <span className="text-destructive">*</span></label>
-                  <Input placeholder="e.g. HDFC Bank, SBI" />
+                  <Input name="bankName" value={formData.bankName} onChange={handleChange} placeholder="e.g. HDFC Bank, SBI" required />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Account Holder Name <span className="text-destructive">*</span></label>
@@ -152,11 +188,11 @@ export default function AddVendorPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Account Number <span className="text-destructive">*</span></label>
-                  <Input placeholder="Enter account number" />
+                  <Input name="accountNumber" value={formData.accountNumber} onChange={handleChange} placeholder="Enter account number" required />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">IFSC / Routing Code <span className="text-destructive">*</span></label>
-                  <Input placeholder="e.g. HDFC0001234" />
+                  <Input name="ifscCode" value={formData.ifscCode} onChange={handleChange} placeholder="e.g. HDFC0001234" required />
                 </div>
               </div>
             </div>
@@ -169,11 +205,11 @@ export default function AddVendorPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">GST Number <span className="text-destructive">*</span></label>
-                  <Input placeholder="e.g. 22AAAAA0000A1Z5" />
+                  <Input name="gstNumber" value={formData.gstNumber} onChange={handleChange} placeholder="e.g. 22AAAAA0000A1Z5" required />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">PAN Number <span className="text-destructive">*</span></label>
-                  <Input placeholder="e.g. ABCDE1234F" />
+                  <Input name="panNumber" value={formData.panNumber} onChange={handleChange} placeholder="e.g. ABCDE1234F" required />
                 </div>
               </div>
 

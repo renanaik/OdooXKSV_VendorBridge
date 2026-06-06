@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,32 +10,37 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileText, Plus, Search, MoreHorizontal, FileSignature, Clock, CheckCircle2, Copy, Eye, Pencil, Trash2 } from "lucide-react";
-
-const rfqData = [
-  { id: "RFQ-2026-089", title: "Enterprise Laptops Q3", category: "IT Hardware", priority: "High", budget: "₹45,00,000", deadline: "12 Jun 2026", vendors: 5, status: "Published" },
-  { id: "RFQ-2026-088", title: "Office Furniture", category: "Facilities", priority: "Medium", budget: "₹12,00,000", deadline: "15 Jun 2026", vendors: 3, status: "Draft" },
-  { id: "RFQ-2026-087", title: "Cloud Hosting Services", category: "Software", priority: "High", budget: "₹24,00,000", deadline: "10 Jun 2026", vendors: 4, status: "Quotation Received" },
-  { id: "RFQ-2026-086", title: "Marketing Agency Retainer", category: "Services", priority: "Low", budget: "₹18,00,000", deadline: "08 Jun 2026", vendors: 2, status: "Under Review" },
-  { id: "RFQ-2026-085", title: "Warehouse Logistics Partner", category: "Logistics", priority: "High", budget: "₹55,00,000", deadline: "01 Jun 2026", vendors: 6, status: "Approved" },
-  { id: "RFQ-2026-084", title: "Raw Material - Steel", category: "Materials", priority: "Medium", budget: "₹85,00,000", deadline: "28 May 2026", vendors: 3, status: "Closed" },
-];
+import api from "@/lib/api";
 
 export default function RfqManagementPage() {
+  const [rfqs, setRfqs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all-status");
   const [categoryFilter, setCategoryFilter] = useState("all-categories");
   const [deadlineFilter, setDeadlineFilter] = useState("all-time");
 
-  const filteredData = rfqData.filter((rfq) => {
-    const matchesSearch = rfq.title.toLowerCase().includes(searchTerm.toLowerCase()) || rfq.id.toLowerCase().includes(searchTerm.toLowerCase());
+  useEffect(() => {
+    const fetchRfqs = async () => {
+      try {
+        const response = await api.get('/rfqs');
+        setRfqs(response.data);
+      } catch (error) {
+        console.error("Failed to fetch RFQs:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRfqs();
+  }, []);
+
+  const filteredData = rfqs.filter((rfq) => {
+    const titleMatch = rfq.title?.toLowerCase().includes(searchTerm.toLowerCase());
+    const idMatch = rfq.rfqNumber?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = titleMatch || idMatch;
     
-    // Simple mock filtering logic for status
-    const matchesStatus = statusFilter === "all-status" || rfq.status.toLowerCase().includes(statusFilter.replace('-', ' '));
-    
-    // Simple mock filtering logic for category
-    const matchesCategory = categoryFilter === "all-categories" || rfq.category.toLowerCase().includes(categoryFilter.toLowerCase());
-    
-    // Simple mock filtering for deadline (just assuming all pass for this demo unless explicitly mapped)
+    const matchesStatus = statusFilter === "all-status" || rfq.status?.toLowerCase().includes(statusFilter.replace('-', ' '));
+    const matchesCategory = categoryFilter === "all-categories" || rfq.category?.toLowerCase().includes(categoryFilter.toLowerCase());
     const matchesDeadline = deadlineFilter === "all-time" || true;
 
     return matchesSearch && matchesStatus && matchesCategory && matchesDeadline;
@@ -127,7 +132,7 @@ export default function RfqManagementPage() {
               />
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val || "")}>
                 <SelectTrigger className="w-[140px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -138,7 +143,7 @@ export default function RfqManagementPage() {
                   <SelectItem value="review">Under Review</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <Select value={categoryFilter} onValueChange={(val) => setCategoryFilter(val || "")}>
                 <SelectTrigger className="w-[140px]">
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
@@ -178,7 +183,13 @@ export default function RfqManagementPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.length === 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground animate-pulse">
+                    Loading RFQs...
+                  </TableCell>
+                </TableRow>
+              ) : filteredData.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     No RFQs found matching the current filters.
@@ -186,14 +197,14 @@ export default function RfqManagementPage() {
                 </TableRow>
               ) : (
                 filteredData.map((rfq) => (
-                <TableRow key={rfq.id}>
-                  <TableCell className="font-medium">{rfq.id}</TableCell>
+                <TableRow key={rfq._id}>
+                  <TableCell className="font-medium">{rfq.rfqNumber}</TableCell>
                   <TableCell>{rfq.title}</TableCell>
                   <TableCell>{rfq.category}</TableCell>
                   <TableCell>{getPriorityBadge(rfq.priority)}</TableCell>
-                  <TableCell>{rfq.budget}</TableCell>
-                  <TableCell>{rfq.deadline}</TableCell>
-                  <TableCell>{rfq.vendors} Vendors</TableCell>
+                  <TableCell>₹{(rfq.budget || 0).toLocaleString()}</TableCell>
+                  <TableCell>{new Date(rfq.deadline).toLocaleDateString()}</TableCell>
+                  <TableCell>{rfq.vendors?.length || 0} Vendors</TableCell>
                   <TableCell>{getStatusBadge(rfq.status)}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -202,7 +213,9 @@ export default function RfqManagementPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem><Eye className="w-4 h-4 mr-2" /> View RFQ</DropdownMenuItem>
+                        <DropdownMenuItem render={<Link href={`/rfqs/${rfq._id}`} />}>
+                          <Eye className="w-4 h-4 mr-2" /> View RFQ
+                        </DropdownMenuItem>
                         <DropdownMenuItem><Pencil className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
                         <DropdownMenuItem><Copy className="w-4 h-4 mr-2" /> Duplicate</DropdownMenuItem>
                         <DropdownMenuSeparator />

@@ -1,57 +1,89 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Package2, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/AuthContext";
+import api from "@/lib/api";
 
 export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+  const router = useRouter();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await api.post("/auth/login", { email, password });
+      login(response.data, response.data.token);
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to login. Please check your credentials.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="w-full lg:grid lg:min-h-screen lg:grid-cols-2">
       <div className="flex items-center justify-center py-12">
-        <div className="mx-auto grid w-[350px] gap-6">
+        <form onSubmit={handleLogin} className="mx-auto grid w-[350px] gap-6">
           <div className="grid gap-2 text-center">
             <h1 className="text-3xl font-bold">Sign In</h1>
             <p className="text-balance text-muted-foreground">
               Enter your email below to login to your account
             </p>
           </div>
+          
+          {error && <div className="text-red-500 text-sm font-medium text-center bg-red-100 p-2 rounded">{error}</div>}
+          
           <div className="grid gap-4">
             <div className="grid gap-2">
-              <label htmlFor="email" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Email</label>
+              <label htmlFor="email" className="text-sm font-medium leading-none">Email</label>
               <Input
                 id="email"
                 type="email"
                 placeholder="m@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
             <div className="grid gap-2">
               <div className="flex items-center">
-                <label htmlFor="password" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Password</label>
-                <Link
-                  href="/forgot-password"
-                  className="ml-auto inline-block text-sm underline text-primary hover:text-primary/80"
-                >
-                  Forgot your password?
-                </Link>
+                <label htmlFor="password" className="text-sm font-medium leading-none">Password</label>
               </div>
-              <Input id="password" type="password" required />
+              <Input 
+                id="password" 
+                type="password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required 
+              />
             </div>
             
             <div className="flex items-center space-x-2">
               <input type="checkbox" id="remember" className="rounded border-gray-300 text-primary focus:ring-primary" />
               <label
                 htmlFor="remember"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                className="text-sm font-medium leading-none"
               >
                 Remember me
               </label>
             </div>
             
-            <Link href="/dashboard" className="w-full">
-              <Button type="button" className="w-full mt-2">
-                Login
-              </Button>
-            </Link>
+            <Button type="submit" className="w-full mt-2" disabled={loading}>
+              {loading ? "Logging in..." : "Login"}
+            </Button>
           </div>
           <div className="mt-4 text-center text-sm">
             Don&apos;t have an account?{" "}
@@ -59,7 +91,7 @@ export default function LoginPage() {
               Sign up
             </Link>
           </div>
-        </div>
+        </form>
       </div>
       
       <div className="hidden bg-muted lg:block relative">

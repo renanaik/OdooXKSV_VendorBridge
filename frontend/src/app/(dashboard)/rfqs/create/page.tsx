@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,36 +9,63 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { FileText, Plus, Trash2, Upload, Sparkles, CheckCircle2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { VendorsList } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/use-toast";
+import api from "@/lib/api";
 
 export default function CreateRfqPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [step, setStep] = useState(1);
-  const [lineItems, setLineItems] = useState([{ id: 1, item: "", sku: "", qty: "", unit: "", price: "" }]);
-  const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
-  const [isDraftSaved, setIsDraftSaved] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [vendorsList, setVendorsList] = useState<any[]>([]);
 
-  const handleSaveDraft = () => {
-    setIsDraftSaved(true);
-    setTimeout(() => setIsDraftSaved(false), 3000);
+  const [formData, setFormData] = useState({
+    title: "",
+    category: "",
+    priority: "Medium",
+    deadline: "",
+    budget: "",
+    department: "Procurement",
+    description: "",
+  });
+
+  const [lineItems, setLineItems] = useState([
+    { id: Date.now(), itemName: "", sku: "", quantity: "", unit: "Nos", expectedPrice: "", tax: "0" }
+  ]);
+  const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchVendors = async () => {
+      try {
+        const res = await api.get('/vendors');
+        setVendorsList(res.data);
+      } catch (err) {
+        console.error("Failed to fetch vendors", err);
+      }
+    };
+    fetchVendors();
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const fileNames = Array.from(e.target.files).map(f => f.name);
-      setUploadedFiles(prev => [...prev, ...fileNames]);
-    }
+  const handleSelectChange = (name: string, value: string | null) => {
+    if (value) setFormData({ ...formData, [name]: value });
   };
 
   const addLineItem = () => {
-    setLineItems([...lineItems, { id: Date.now(), item: "", sku: "", qty: "", unit: "", price: "" }]);
+    setLineItems([...lineItems, { id: Date.now(), itemName: "", sku: "", quantity: "", unit: "Nos", expectedPrice: "", tax: "0" }]);
   };
 
   const removeLineItem = (id: number) => {
     setLineItems(lineItems.filter(item => item.id !== id));
+  };
+
+  const updateLineItem = (id: number, field: string, value: string) => {
+    setLineItems(lineItems.map(item => item.id === id ? { ...item, [field]: value } : item));
   };
 
   const toggleVendor = (id: string) => {
@@ -55,8 +82,41 @@ export default function CreateRfqPage() {
     if (step > 1) setStep(step - 1);
   };
 
-  const handleSubmit = () => {
-    router.push("/dashboard");
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        priority: formData.priority,
+        budget: Number(formData.budget),
+        deadline: new Date(formData.deadline).toISOString(),
+        department: formData.department,
+        lineItems: lineItems.map(item => ({
+          itemName: item.itemName,
+          sku: item.sku,
+          quantity: Number(item.quantity),
+          unit: item.unit,
+          expectedPrice: Number(item.expectedPrice),
+          tax: Number(item.tax)
+        })),
+        assignedVendors: selectedVendors,
+        status: 'Published'
+      };
+
+      await api.post('/rfqs', payload);
+      toast({ title: "Success", description: "RFQ published successfully!" });
+      router.push("/rfqs");
+    } catch (err: any) {
+      toast({ 
+        title: "Error", 
+        description: err.response?.data?.message || "Failed to create RFQ", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -68,9 +128,6 @@ export default function CreateRfqPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
-          <Button variant="secondary" onClick={handleSaveDraft}>
-            {isDraftSaved ? <><CheckCircle2 className="w-4 h-4 mr-2 text-emerald-500" /> Saved</> : "Save Draft"}
-          </Button>
         </div>
       </div>
 
@@ -83,7 +140,7 @@ export default function CreateRfqPage() {
             { num: 1, label: "Basic Info" },
             { num: 2, label: "Line Items" },
             { num: 3, label: "Vendors" },
-            { num: 4, label: "Attachments" }
+            { num: 4, label: "Review" }
           ].map((s) => (
             <div key={s.num} className="flex flex-col items-center gap-2">
               <div className={cn(
@@ -104,13 +161,13 @@ export default function CreateRfqPage() {
             {step === 1 && "RFQ Information"}
             {step === 2 && "Line Items"}
             {step === 3 && "Vendor Assignment"}
-            {step === 4 && "Attachments & Final Review"}
+            {step === 4 && "Final Review"}
           </CardTitle>
           <CardDescription>
             {step === 1 && "Provide high-level details for your sourcing requirement."}
             {step === 2 && "Specify the exact goods or services required."}
             {step === 3 && "Select vendors to invite. AI has recommended the best matches."}
-            {step === 4 && "Upload supporting documents and publish."}
+            {step === 4 && "Review and publish."}
           </CardDescription>
         </CardHeader>
         
@@ -118,54 +175,54 @@ export default function CreateRfqPage() {
           {step === 1 && (
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2 col-span-2">
-                <label className="text-sm font-medium">RFQ Title</label>
-                <Input placeholder="e.g. Procurement of 500 Enterprise Laptops" />
+                <label className="text-sm font-medium">RFQ Title <span className="text-destructive">*</span></label>
+                <Input name="title" value={formData.title} onChange={handleChange} placeholder="e.g. Procurement of 500 Enterprise Laptops" required />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Category</label>
-                <Select>
+                <label className="text-sm font-medium">Category <span className="text-destructive">*</span></label>
+                <Select value={formData.category} onValueChange={(v) => handleSelectChange('category', v)}>
                   <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="hw">IT Hardware</SelectItem>
-                    <SelectItem value="sw">Software</SelectItem>
-                    <SelectItem value="srv">Services</SelectItem>
-                    <SelectItem value="furn">Furniture</SelectItem>
+                    <SelectItem value="IT Hardware">IT Hardware</SelectItem>
+                    <SelectItem value="Software">Software</SelectItem>
+                    <SelectItem value="Services">Services</SelectItem>
+                    <SelectItem value="Furniture">Furniture</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Priority</label>
-                <Select>
+                <Select value={formData.priority} onValueChange={(v) => handleSelectChange('priority', v)}>
                   <SelectTrigger><SelectValue placeholder="Select Priority" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="Low">Low</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Deadline for Submission</label>
-                <Input type="date" />
+                <label className="text-sm font-medium">Deadline for Submission <span className="text-destructive">*</span></label>
+                <Input type="date" name="deadline" value={formData.deadline} onChange={handleChange} required />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Estimated Budget (₹)</label>
-                <Input type="number" placeholder="1000000" />
+                <label className="text-sm font-medium">Estimated Budget (₹) <span className="text-destructive">*</span></label>
+                <Input type="number" name="budget" value={formData.budget} onChange={handleChange} placeholder="1000000" required />
               </div>
               <div className="space-y-2 col-span-2">
-                <label className="text-sm font-medium">Detailed Description</label>
-                <Textarea placeholder="Provide detailed specifications..." className="h-32" />
+                <label className="text-sm font-medium">Detailed Description <span className="text-destructive">*</span></label>
+                <Textarea name="description" value={formData.description} onChange={handleChange} placeholder="Provide detailed specifications..." className="h-32" required />
               </div>
             </div>
           )}
 
           {step === 2 && (
             <div className="space-y-4">
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Item Name</TableHead>
+                      <TableHead className="min-w-[200px]">Item Name</TableHead>
                       <TableHead>SKU/Part No.</TableHead>
                       <TableHead className="w-[100px]">Qty</TableHead>
                       <TableHead className="w-[120px]">Unit</TableHead>
@@ -174,23 +231,23 @@ export default function CreateRfqPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {lineItems.map((item, index) => (
+                    {lineItems.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell><Input placeholder="Item Description" /></TableCell>
-                        <TableCell><Input placeholder="SKU-123" /></TableCell>
-                        <TableCell><Input type="number" placeholder="10" /></TableCell>
+                        <TableCell><Input value={item.itemName} onChange={(e) => updateLineItem(item.id, 'itemName', e.target.value)} placeholder="Item Description" /></TableCell>
+                        <TableCell><Input value={item.sku} onChange={(e) => updateLineItem(item.id, 'sku', e.target.value)} placeholder="SKU-123" /></TableCell>
+                        <TableCell><Input type="number" value={item.quantity} onChange={(e) => updateLineItem(item.id, 'quantity', e.target.value)} placeholder="10" /></TableCell>
                         <TableCell>
-                          <Select defaultValue="nos">
+                          <Select value={item.unit} onValueChange={(v) => updateLineItem(item.id, 'unit', v || "")}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="nos">Nos</SelectItem>
-                              <SelectItem value="kg">Kg</SelectItem>
-                              <SelectItem value="lit">Litres</SelectItem>
-                              <SelectItem value="ls">Lumpsum</SelectItem>
+                              <SelectItem value="Nos">Nos</SelectItem>
+                              <SelectItem value="Kg">Kg</SelectItem>
+                              <SelectItem value="Litres">Litres</SelectItem>
+                              <SelectItem value="Lumpsum">Lumpsum</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell><Input type="number" placeholder="Price" /></TableCell>
+                        <TableCell><Input type="number" value={item.expectedPrice} onChange={(e) => updateLineItem(item.id, 'expectedPrice', e.target.value)} placeholder="Price" /></TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeLineItem(item.id)}>
                             <Trash2 className="h-4 w-4" />
@@ -213,83 +270,66 @@ export default function CreateRfqPage() {
                  <div className="p-2 bg-primary/20 rounded-full"><Sparkles className="h-5 w-5 text-primary" /></div>
                  <div>
                    <h4 className="font-semibold text-primary">AI Vendor Recommendations</h4>
-                   <p className="text-sm text-primary/80 mt-1">Based on the category "Hardware" and your historical POs, we highly recommend inviting these top performing vendors.</p>
+                   <p className="text-sm text-primary/80 mt-1">Based on the category "{formData.category || 'selected'}", we recommend these vendors from your registry.</p>
                  </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                 {VendorsList.filter(v => v.category === "Hardware" || v.category === "IT Services").map((vendor) => {
-                   const isSelected = selectedVendors.includes(vendor.id);
-                   const isRecommended = vendor.rating > 4.5;
-                   
-                   return (
-                     <div 
-                       key={vendor.id} 
-                       className={cn(
-                         "border rounded-lg p-4 cursor-pointer transition-all",
-                         isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:border-muted-foreground/50",
-                         isRecommended && !isSelected && "border-primary/30"
-                       )}
-                       onClick={() => toggleVendor(vendor.id)}
-                     >
-                       <div className="flex justify-between items-start">
-                         <div>
-                           <div className="flex items-center gap-2">
-                             <h4 className="font-semibold">{vendor.name}</h4>
-                             {isRecommended && <Badge variant="secondary" className="bg-amber-500/20 text-amber-500 hover:bg-amber-500/30">Recommended</Badge>}
+              {vendorsList.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No vendors found. Please add vendors first.</div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                   {vendorsList.map((vendor) => {
+                     const isSelected = selectedVendors.includes(vendor._id);
+                     const isCategoryMatch = vendor.category === formData.category;
+                     const isRecommended = isCategoryMatch || vendor.rating > 4;
+                     
+                     return (
+                       <div 
+                         key={vendor._id} 
+                         className={cn(
+                           "border rounded-lg p-4 cursor-pointer transition-all",
+                           isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:border-muted-foreground/50",
+                           isRecommended && !isSelected && "border-primary/30"
+                         )}
+                         onClick={() => toggleVendor(vendor._id)}
+                       >
+                         <div className="flex justify-between items-start">
+                           <div>
+                             <div className="flex items-center gap-2">
+                               <h4 className="font-semibold">{vendor.companyName}</h4>
+                               {isRecommended && <Badge variant="secondary" className="bg-amber-500/20 text-amber-500 hover:bg-amber-500/30">Recommended</Badge>}
+                             </div>
+                             <p className="text-xs text-muted-foreground mt-1">GST: {vendor.gstNumber} • Rating: {vendor.rating}★</p>
                            </div>
-                           <p className="text-xs text-muted-foreground mt-1">GST: {vendor.gst} • Rating: {vendor.rating}★</p>
-                         </div>
-                         <div className={cn("w-5 h-5 rounded-full border flex items-center justify-center", isSelected ? "bg-primary border-primary" : "border-muted-foreground")}>
-                            {isSelected && <CheckCircle2 className="h-3 w-3 text-primary-foreground" />}
+                           <div className={cn("w-5 h-5 rounded-full border flex items-center justify-center", isSelected ? "bg-primary border-primary" : "border-muted-foreground")}>
+                              {isSelected && <CheckCircle2 className="h-3 w-3 text-primary-foreground" />}
+                           </div>
                          </div>
                        </div>
-                     </div>
-                   );
-                 })}
-              </div>
+                     );
+                   })}
+                </div>
+              )}
             </div>
           )}
 
           {step === 4 && (
-            <div className="space-y-6 text-center py-12">
-               <div className="mx-auto w-24 h-24 rounded-full bg-accent/30 border-2 border-dashed border-border flex items-center justify-center mb-6">
-                  <Upload className="h-8 w-8 text-muted-foreground" />
-               </div>
-               <h3 className="text-lg font-medium">Upload RFQ Attachments</h3>
-               <p className="text-muted-foreground max-w-md mx-auto">
-                 Drag and drop specification sheets, CAD diagrams, or SLA documents here, or click to browse.
-               </p>
-               <input 
-                 type="file" 
-                 id="file-upload" 
-                 multiple 
-                 className="hidden" 
-                 onChange={handleFileUpload} 
-               />
-               <Button variant="outline" className="mt-4" onClick={() => document.getElementById('file-upload')?.click()}>
-                 Browse Files
-               </Button>
+            <div className="space-y-6 py-6">
+               <h3 className="text-xl font-bold text-center">Ready to Publish</h3>
+               <p className="text-center text-muted-foreground">Please review your selections before publishing this RFQ.</p>
                
-               {uploadedFiles.length > 0 && (
-                 <div className="mt-6 max-w-md mx-auto bg-muted/50 p-4 rounded-lg text-left">
-                   <h4 className="text-sm font-semibold mb-2">Uploaded Files:</h4>
-                   <ul className="text-sm space-y-1">
-                     {uploadedFiles.map((file, i) => (
-                       <li key={i} className="flex items-center gap-2 text-muted-foreground">
-                         <FileText className="w-4 h-4" /> {file}
-                       </li>
-                     ))}
-                   </ul>
-                 </div>
-               )}
-               
-               <div className="mt-8 pt-8 border-t text-left max-w-md mx-auto">
+               <div className="mt-8 pt-8 border-t max-w-md mx-auto">
+                 <h4 className="font-semibold mb-2">Title</h4>
+                 <p className="text-muted-foreground mb-4">{formData.title}</p>
+                 
+                 <h4 className="font-semibold mb-2">Line Items</h4>
+                 <p className="text-muted-foreground mb-4">{lineItems.length} item(s) total expected budget: ₹{formData.budget}</p>
+
                  <h4 className="font-semibold mb-4">Selected Vendors ({selectedVendors.length})</h4>
                  <div className="flex flex-wrap gap-2">
                     {selectedVendors.map(id => {
-                      const v = VendorsList.find(x => x.id === id);
-                      return <Badge key={id} variant="secondary">{v?.name}</Badge>;
+                      const v = vendorsList.find(x => x._id === id);
+                      return <Badge key={id} variant="secondary">{v?.companyName}</Badge>;
                     })}
                  </div>
                </div>
@@ -298,14 +338,14 @@ export default function CreateRfqPage() {
         </CardContent>
 
         <CardFooter className="flex justify-between border-t bg-muted/20 px-6 py-4">
-          <Button variant="outline" onClick={handleBack} disabled={step === 1}>
+          <Button variant="outline" onClick={handleBack} disabled={step === 1 || isSubmitting}>
             Back
           </Button>
           {step < 4 ? (
             <Button onClick={handleNext}>Next Step</Button>
           ) : (
-            <Button onClick={handleSubmit} className="bg-primary text-primary-foreground">
-              Publish & Send RFQ
+            <Button onClick={handleSubmit} className="bg-primary text-primary-foreground" disabled={isSubmitting}>
+              {isSubmitting ? "Publishing..." : "Publish & Send RFQ"}
             </Button>
           )}
         </CardFooter>

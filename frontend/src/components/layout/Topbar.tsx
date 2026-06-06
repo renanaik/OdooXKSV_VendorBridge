@@ -29,12 +29,10 @@ export function Topbar() {
 
       <div className="flex items-center gap-4">
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" className="relative h-9 w-9 rounded-full outline-none">
+          <DropdownMenuTrigger render={<Button variant="outline" size="icon" className="relative h-9 w-9 rounded-full outline-none" />}>
               <Bell className="h-4 w-4" />
               <span className="absolute top-1.5 right-2 h-2 w-2 rounded-full bg-destructive" />
               <span className="sr-only">Toggle notifications</span>
-            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-80">
             <DropdownMenuLabel className="flex items-center justify-between">
