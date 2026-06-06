@@ -28,7 +28,7 @@ const sidebarItems = [
   { name: "Approvals", href: "/approvals", icon: CheckSquare },
   { name: "Purchase Orders", href: "/purchase-orders", icon: ShoppingCart },
   { name: "Invoices", href: "/invoices", icon: Receipt },
-  { name: "Reports", href: "/reports", icon: BarChart3 },
+  { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Activity Logs", href: "/activity", icon: Activity },
   { name: "Settings", href: "/settings", icon: Settings },
 ];

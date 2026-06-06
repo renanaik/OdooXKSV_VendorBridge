@@ -50,8 +50,8 @@ export default function CompareQuotationsPage() {
                    </div>
                 </div>
                 
-                <div className="w-48 h-48 rounded-full border-8 border-background bg-card flex flex-col items-center justify-center shadow-inner relative">
-                   <svg className="absolute inset-0 w-full h-full transform -rotate-90">
+                <div className="w-48 h-48 shrink-0 rounded-full border-8 border-background bg-card flex flex-col items-center justify-center shadow-inner relative">
+                   <svg viewBox="0 0 192 192" className="absolute inset-0 w-full h-full transform -rotate-90">
                      <circle cx="96" cy="96" r="88" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-muted" />
                      <circle cx="96" cy="96" r="88" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={`${2 * Math.PI * 88}`} strokeDashoffset={`${2 * Math.PI * 88 * (1 - recommendedVendor.score / 100)}`} className="text-emerald-500 transition-all duration-1000" />
                    </svg>
@@ -111,6 +111,14 @@ export default function CompareQuotationsPage() {
                   {QuotationComparisonData.map(q => (
                     <td key={q.vendor} className="p-4 text-center border-l text-muted-foreground">
                        {q.paymentTerms}
+                    </td>
+                  ))}
+               </tr>
+               <tr className="hover:bg-muted/30">
+                  <td className="p-4 font-medium flex items-center gap-2"><ShieldAlert className="w-4 h-4 text-muted-foreground" /> Warranty</td>
+                  {QuotationComparisonData.map(q => (
+                    <td key={q.vendor} className="p-4 text-center border-l text-muted-foreground">
+                       {q.recommended ? "3 Years On-site" : "1 Year Standard"}
                     </td>
                   ))}
                </tr>

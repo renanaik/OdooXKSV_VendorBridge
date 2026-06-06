@@ -132,6 +132,23 @@ export default function QuotationSubmitPage() {
                 </div>
              </CardContent>
            </Card>
+
+            <Card>
+             <CardHeader>
+               <CardTitle className="text-lg flex items-center gap-2">Attachments</CardTitle>
+               <CardDescription>Upload specification sheets, custom terms, or brochures.</CardDescription>
+             </CardHeader>
+             <CardContent>
+               <div className="relative border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer group">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 12v9"></path><path d="m16 16-4-4-4 4"></path></svg>
+                  </div>
+                  <span className="font-medium text-sm">Drag and drop files here or click to browse</span>
+                  <span className="text-xs text-muted-foreground mt-2">Maximum file size 10MB (PDF, DOCX, XLSX)</span>
+                  <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" multiple />
+               </div>
+             </CardContent>
+            </Card>
         </div>
 
         <div className="space-y-6">

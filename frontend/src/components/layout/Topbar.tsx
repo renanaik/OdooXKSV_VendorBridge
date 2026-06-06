@@ -28,11 +28,52 @@ export function Topbar() {
       </div>
 
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" className="relative h-9 w-9 rounded-full">
-          <Bell className="h-4 w-4" />
-          <span className="absolute top-1.5 right-2 h-2 w-2 rounded-full bg-destructive" />
-          <span className="sr-only">Toggle notifications</span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon" className="relative h-9 w-9 rounded-full outline-none">
+              <Bell className="h-4 w-4" />
+              <span className="absolute top-1.5 right-2 h-2 w-2 rounded-full bg-destructive" />
+              <span className="sr-only">Toggle notifications</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuLabel className="flex items-center justify-between">
+              <span>Notifications</span>
+              <span className="text-xs font-normal text-muted-foreground cursor-pointer hover:underline">Mark all as read</span>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <div className="max-h-[300px] overflow-y-auto">
+              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                <div className="flex items-center gap-2 w-full">
+                  <span className="h-2 w-2 rounded-full bg-blue-500"></span>
+                  <span className="font-semibold text-sm">New Quotation Received</span>
+                  <span className="text-xs text-muted-foreground ml-auto">2m ago</span>
+                </div>
+                <span className="text-xs text-muted-foreground pl-4">Dell India submitted a quote for RFQ-2026-001.</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                <div className="flex items-center gap-2 w-full">
+                  <span className="h-2 w-2 rounded-full bg-amber-500"></span>
+                  <span className="font-semibold text-sm">Vendor Approval Pending</span>
+                  <span className="text-xs text-muted-foreground ml-auto">1h ago</span>
+                </div>
+                <span className="text-xs text-muted-foreground pl-4">TechCorp IT Solutions requires profile verification.</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                <div className="flex items-center gap-2 w-full">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                  <span className="font-semibold text-sm">Invoice Paid</span>
+                  <span className="text-xs text-muted-foreground ml-auto">3h ago</span>
+                </div>
+                <span className="text-xs text-muted-foreground pl-4">Payment processed for INV-2026-042 (₹ 44.05L).</span>
+              </DropdownMenuItem>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="w-full text-center text-sm font-medium text-primary cursor-pointer justify-center">
+              View All Notifications
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <DropdownMenu>
           <DropdownMenuTrigger className="relative flex h-9 w-9 items-center justify-center rounded-full hover:bg-accent transition-colors outline-none">

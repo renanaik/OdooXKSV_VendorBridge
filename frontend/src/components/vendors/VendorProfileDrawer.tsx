@@ -3,6 +3,7 @@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { FileText, Building2, MapPin, Landmark, Phone, Mail, FileCheck2, TrendingUp } from "lucide-react";
 
@@ -124,6 +125,14 @@ export function VendorProfileDrawer({ vendor, open, onOpenChange }: VendorDrawer
                    <div className="text-4xl font-bold text-emerald-500">96%</div>
                    <div className="text-xs mt-2 text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> +2% this year</div>
                 </div>
+                <div className="bg-card border rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-2">Total POs</span>
+                   <div className="text-3xl font-bold">124</div>
+                </div>
+                <div className="bg-card border rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-2">Total Value</span>
+                   <div className="text-3xl font-bold">₹8.5M</div>
+                </div>
              </div>
 
              <div>
@@ -149,6 +158,12 @@ export function VendorProfileDrawer({ vendor, open, onOpenChange }: VendorDrawer
              </div>
           </TabsContent>
         </Tabs>
+
+        <div className="mt-8 pt-6 border-t flex items-center gap-3 w-full justify-end">
+          <Button variant="outline" className="text-destructive hover:bg-destructive/10">Block Vendor</Button>
+          <Button variant="secondary">Request Update</Button>
+          <Button>Approve Vendor</Button>
+        </div>
       </SheetContent>
     </Sheet>
   );
