@@ -117,9 +117,9 @@ export default function InvoicesPage() {
                      </TableCell>
                      <TableCell className="text-right font-semibold">{(inv.grandTotal || 0).toLocaleString('en-IN')}</TableCell>
                      <TableCell className="text-center">
-                        <Link href={`/invoices/${inv._id}`}>
-                          <Button variant="ghost" size="sm"><Eye className="h-4 w-4 mr-2" /> View</Button>
-                        </Link>
+                        <Button variant="ghost" size="sm" onClick={() => window.location.href = `/invoices/${inv._id}`}>
+                          <Eye className="h-4 w-4 mr-2" /> View
+                        </Button>
                      </TableCell>
                    </TableRow>
                  ))}

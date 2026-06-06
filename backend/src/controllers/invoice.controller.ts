@@ -9,7 +9,7 @@ export const createInvoice = async (req: Request, res: Response, next: NextFunct
     const invoice = await Invoice.create({
       ...req.body,
       invoiceNumber,
-      vendor: req.user._id, // Assuming vendor creates invoice
+      vendor: req.body.vendor || req.user._id,
     });
     res.status(201).json(invoice);
   } catch (error) {

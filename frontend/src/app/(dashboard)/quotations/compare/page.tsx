@@ -1,75 +1,150 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sparkles, CheckCircle2, TrendingDown, Clock, ShieldAlert, Award, IndianRupee, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/ui/use-toast";
 import api from "@/lib/api";
 
 function CompareQuotationsContent() {
+  const { toast } = useToast();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [rfqId, setRfqId] = useState<string | null>(searchParams.get("rfqId"));
+  const [allRfqs, setAllRfqs] = useState<any[]>([]);
   const [comparisonData, setComparisonData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [processingPO, setProcessingPO] = useState(false);
+
+  // Fetch RFQs list once on mount
+  useEffect(() => {
+    const fetchRfqs = async () => {
+      try {
+        const rfqsRes = await api.get('/rfqs');
+        setAllRfqs(rfqsRes.data || []);
+        
+        // Auto-select first RFQ if none provided in URL
+        if (!rfqId && rfqsRes.data?.length > 0) {
+          setRfqId(rfqsRes.data[0]._id);
+        }
+      } catch (err) {
+        console.error("Failed to load RFQs", err);
+      }
+    };
+    fetchRfqs();
+  }, []); // Only run once
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchComparison = async () => {
+      if (!rfqId) return;
+      
       try {
         setLoading(true);
-        let targetRfqId = rfqId;
-        
-        // If no RFQ specified in URL, just fetch the first one available
-        if (!targetRfqId) {
-          const rfqsRes = await api.get('/rfqs');
-          if (rfqsRes.data && rfqsRes.data.length > 0) {
-            targetRfqId = rfqsRes.data[0]._id;
-            setRfqId(targetRfqId);
-          } else {
-            setError("No RFQs found in the system to compare.");
-            setLoading(false);
-            return;
-          }
-        }
-        
-        const res = await api.get(`/quotations/compare/${targetRfqId}`);
+        setError(null);
+        const res = await api.get(`/quotations/compare/${rfqId}`);
         setComparisonData(res.data);
       } catch (err: any) {
-        console.error("Failed to fetch comparison", err);
-        setError("Failed to load quotation comparison data.");
+        // Silently handle error without triggering Next.js dev overlay
+        setError("Failed to load quotation comparison data for this RFQ.");
+        setComparisonData([]);
       } finally {
         setLoading(false);
       }
     };
     
-    fetchData();
+    fetchComparison();
   }, [rfqId]);
 
-  if (loading) {
-    return <div className="p-8 text-center animate-pulse">Running AI scoring engine...</div>;
-  }
+  // Handle Generate PO Action
+  const handleGeneratePO = async (vendorToApprove?: any) => {
+    const q = vendorToApprove || recommendedVendor;
+    if (!q) {
+      toast({ title: "No Vendor Selected", description: "Please select a vendor to generate PO", variant: "destructive" });
+      return;
+    }
 
-  if (error || comparisonData.length === 0) {
-    return <div className="p-8 text-center text-muted-foreground">{error || "No quotations found for this RFQ to compare."}</div>;
-  }
+    try {
+      setProcessingPO(true);
+      
+      // 1. Mark quotation as Accepted
+      await api.put(`/quotations/${q._id}`, { status: "Accepted" });
+      
+      // 2. Generate the Purchase Order payload
+      const payload = {
+        quotation: q._id,
+        vendor: q.vendor?._id || q.vendor,
+        items: q.items,
+        subtotal: q.subtotal,
+        tax: q.tax,
+        grandTotal: q.grandTotal,
+        status: "Draft"
+      };
+      
+      await api.post("/purchase-orders", payload);
+      
+      toast({ title: "Success", description: "Quotation Approved & PO Created Successfully!" });
+      router.push("/purchase-orders");
+    } catch (err: any) {
+      console.error("PO Creation failed:", err);
+      toast({ title: "Error", description: err.response?.data?.message || "Failed to create Purchase Order", variant: "destructive" });
+    } finally {
+      setProcessingPO(false);
+    }
+  };
 
-  // The backend already sorts by score descending, so the first is recommended
-  const recommendedVendor = comparisonData[0];
+  // Handle RFQ Selection Change
+  const handleRfqChange = (newRfqId: string) => {
+    setRfqId(newRfqId);
+    router.push(`/quotations/compare?rfqId=${newRfqId}`);
+  };
+
+  const recommendedVendor = comparisonData.length > 0 ? comparisonData[0] : null;
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">AI Quotation Comparison</h2>
           <p className="text-muted-foreground mt-1">Intelligent evaluation matrix</p>
         </div>
-        <Button>Generate PO for Selected Vendor</Button>
+        <div className="flex items-center gap-4">
+          <div className="w-[300px]">
+             <Select value={rfqId || ""} onValueChange={handleRfqChange}>
+               <SelectTrigger>
+                 <SelectValue placeholder="Select RFQ to Compare" />
+               </SelectTrigger>
+               <SelectContent>
+                 {allRfqs.map((r: any) => (
+                   <SelectItem key={r._id} value={r._id}>{r.rfqNumber} - {r.title}</SelectItem>
+                 ))}
+               </SelectContent>
+             </Select>
+          </div>
+          <Button 
+            className="bg-emerald-500 hover:bg-emerald-600" 
+            onClick={() => handleGeneratePO()}
+            disabled={processingPO || comparisonData.length === 0}
+          >
+            {processingPO ? "Processing..." : "Generate PO for Selected Vendor"}
+          </Button>
+        </div>
       </div>
 
-      {recommendedVendor && (
+      {loading && <div className="p-8 text-center animate-pulse">Running AI scoring engine...</div>}
+      
+      {!loading && (error || comparisonData.length === 0) && (
+        <div className="p-8 text-center text-muted-foreground bg-muted/20 border border-dashed rounded-xl">
+           {error || "No quotations found for this RFQ to compare. Please select another RFQ."}
+        </div>
+      )}
+
+      {!loading && recommendedVendor && (
         <Card className="border-emerald-500/50 bg-emerald-500/5 shadow-lg shadow-emerald-500/10 mb-8 overflow-hidden relative">
           <div className="absolute top-0 right-0 p-4">
              <Badge className="bg-emerald-500 hover:bg-emerald-600">Top Choice</Badge>
@@ -183,8 +258,13 @@ function CompareQuotationsContent() {
                   <td className="p-4 font-medium">Final Action</td>
                   {comparisonData.map((q, i) => (
                     <td key={q._id} className="p-4 text-center border-l">
-                       <Button variant={i === 0 ? "default" : "outline"} className="w-full">
-                         {i === 0 ? "Approve & Create PO" : "Select Alternative"}
+                       <Button 
+                         variant={i === 0 ? "default" : "outline"} 
+                         className={cn("w-full", i === 0 ? "bg-emerald-500 hover:bg-emerald-600" : "")}
+                         onClick={() => handleGeneratePO(q)}
+                         disabled={processingPO}
+                       >
+                         {i === 0 ? (processingPO ? "Processing..." : "Approve & Create PO") : "Select Alternative"}
                        </Button>
                     </td>
                   ))}

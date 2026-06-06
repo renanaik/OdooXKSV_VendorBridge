@@ -204,7 +204,7 @@ export default function RfqManagementPage() {
                   <TableCell>{getPriorityBadge(rfq.priority)}</TableCell>
                   <TableCell>₹{(rfq.budget || 0).toLocaleString()}</TableCell>
                   <TableCell>{new Date(rfq.deadline).toLocaleDateString()}</TableCell>
-                  <TableCell>{rfq.vendors?.length || 0} Vendors</TableCell>
+                  <TableCell>{rfq.assignedVendors?.length || 0} Vendors</TableCell>
                   <TableCell>{getStatusBadge(rfq.status)}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -213,8 +213,11 @@ export default function RfqManagementPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem render={<Link href={`/rfqs/${rfq._id}`} />}>
+                        <DropdownMenuItem className="cursor-pointer" onClick={() => window.location.href = `/rfqs/${rfq._id}`}>
                           <Eye className="w-4 h-4 mr-2" /> View RFQ
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer" onClick={() => window.location.href = `/quotations/submit`}>
+                          <FileSignature className="w-4 h-4 mr-2" /> Submit Quotation
                         </DropdownMenuItem>
                         <DropdownMenuItem><Pencil className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
                         <DropdownMenuItem><Copy className="w-4 h-4 mr-2" /> Duplicate</DropdownMenuItem>

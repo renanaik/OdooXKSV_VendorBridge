@@ -46,9 +46,9 @@ export function VendorProfileDrawer({ vendor, open, onOpenChange }: VendorDrawer
                  Address Information
               </h3>
               <div className="space-y-1.5 text-sm text-muted-foreground ml-10">
-                <p className="text-foreground font-medium">Corporate Office, Building No. 45</p>
-                <p>Bandra Kurla Complex</p>
-                <p>Mumbai, Maharashtra 400051, India</p>
+                <p className="text-foreground font-medium">{vendor.address || 'Corporate Office'}</p>
+                <p>{vendor.city ? `${vendor.city}, ${vendor.state || ''} ${vendor.postalCode || ''}` : 'Bandra Kurla Complex'}</p>
+                <p>{vendor.country || 'India'}</p>
               </div>
             </div>
             
@@ -59,13 +59,13 @@ export function VendorProfileDrawer({ vendor, open, onOpenChange }: VendorDrawer
               </h3>
               <div className="ml-10">
                 <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Primary Contact</p>
-                <p className="font-bold text-base mb-3">Anil Ambani</p>
+                <p className="font-bold text-base mb-3">{vendor.contactPerson || 'Account Manager'}</p>
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-3 text-sm text-muted-foreground bg-background/50 p-2 rounded-lg border border-border/50 w-fit">
-                    <Phone className="h-4 w-4 text-primary" /> +91 98765 43210
+                    <Phone className="h-4 w-4 text-primary" /> {vendor.phone || '+91 98765 43210'}
                   </div>
                   <div className="flex items-center gap-3 text-sm text-muted-foreground bg-background/50 p-2 rounded-lg border border-border/50 w-fit">
-                    <Mail className="h-4 w-4 text-primary" /> anil@example.com
+                    <Mail className="h-4 w-4 text-primary" /> {vendor.email || 'contact@example.com'}
                   </div>
                 </div>
               </div>
@@ -79,7 +79,7 @@ export function VendorProfileDrawer({ vendor, open, onOpenChange }: VendorDrawer
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-10">
                  <div className="space-y-1">
                    <p className="text-xs text-muted-foreground">Bank Name</p>
-                   <p className="font-medium text-sm bg-background/50 p-2 rounded-md border border-border/50">HDFC Bank Ltd.</p>
+                   <p className="font-medium text-sm bg-background/50 p-2 rounded-md border border-border/50">{vendor.bankName || 'HDFC Bank Ltd.'}</p>
                  </div>
                  <div className="space-y-1">
                    <p className="text-xs text-muted-foreground">Account Name</p>
@@ -87,11 +87,11 @@ export function VendorProfileDrawer({ vendor, open, onOpenChange }: VendorDrawer
                  </div>
                  <div className="space-y-1">
                    <p className="text-xs text-muted-foreground">Account No</p>
-                   <p className="font-medium text-sm font-mono tracking-wider bg-background/50 p-2 rounded-md border border-border/50">502000XXXXXX12</p>
+                   <p className="font-medium text-sm font-mono tracking-wider bg-background/50 p-2 rounded-md border border-border/50">{vendor.accountNumber || '502000XXXXXX12'}</p>
                  </div>
                  <div className="space-y-1">
                    <p className="text-xs text-muted-foreground">IFSC Code</p>
-                   <p className="font-medium text-sm font-mono tracking-wider bg-background/50 p-2 rounded-md border border-border/50">HDFC0001234</p>
+                   <p className="font-medium text-sm font-mono tracking-wider bg-background/50 p-2 rounded-md border border-border/50">{vendor.ifscCode || 'HDFC0001234'}</p>
                  </div>
                </div>
             </div>

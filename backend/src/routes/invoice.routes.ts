@@ -5,13 +5,13 @@ import { protect, authorize } from '../middleware/authMiddleware';
 const router = express.Router();
 
 router.route('/')
-  .post(protect, authorize('Vendor'), createInvoice)
+  .post(protect, authorize('Vendor', 'Admin', 'Procurement Officer'), createInvoice)
   .get(protect, getInvoices);
 
 router.route('/:id')
   .get(protect, getInvoiceById);
 
-router.patch('/:id/pay', protect, authorize('Finance', 'Admin'), markInvoicePaid);
+router.patch('/:id/pay', protect, authorize('Finance', 'Admin', 'Procurement Officer'), markInvoicePaid);
 
 router.get('/:id/pdf', protect, generatePdfEndpoint);
 router.post('/:id/email', protect, sendEmailEndpoint);

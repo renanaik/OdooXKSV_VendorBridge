@@ -18,9 +18,9 @@ export const compareQuotations = async (rfqId: string) => {
     const vendorObj: any = q.vendor;
     const vendorRating = vendorObj.rating || 3; 
     
-    const priceScore = (minPrice / q.grandTotal) * 50;
+    const priceScore = (q.grandTotal > 0 ? (minPrice / q.grandTotal) : 1) * 50;
     const ratingScore = (vendorRating / 5) * 20;
-    const deliveryScore = (minDelivery / q.deliveryDays) * 15;
+    const deliveryScore = (q.deliveryDays > 0 ? (minDelivery / q.deliveryDays) : 1) * 15;
     const performanceScore = 8;
     const riskScore = 4.5;
     

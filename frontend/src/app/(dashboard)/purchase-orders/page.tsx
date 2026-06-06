@@ -150,9 +150,9 @@ export default function PurchaseOrdersPage() {
                        <Badge variant={po.status === 'Draft' ? 'secondary' : 'default'}>{po.status}</Badge>
                      </TableCell>
                      <TableCell className="text-right">
-                       <Link href={`/purchase-orders/${po._id}`}>
-                         <Button variant="ghost" size="sm"><Eye className="w-4 h-4 mr-2" /> View</Button>
-                       </Link>
+                       <Button variant="ghost" size="sm" onClick={() => window.location.href = `/purchase-orders/${po._id}`}>
+                         <Eye className="w-4 h-4 mr-2" /> View
+                       </Button>
                      </TableCell>
                    </TableRow>
                  ))}

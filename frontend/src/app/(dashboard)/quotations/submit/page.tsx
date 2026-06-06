@@ -136,7 +136,7 @@ export default function QuotationSubmitPage() {
 
       await api.post("/quotations", payload);
       toast({ title: "Success", description: "Quotation submitted successfully!" });
-      router.push("/quotations");
+      router.push(`/quotations/compare?rfqId=${selectedRfqId}`);
     } catch (err: any) {
       toast({ title: "Error", description: err.response?.data?.message || "Failed to submit quotation", variant: "destructive" });
     } finally {
